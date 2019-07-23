@@ -4,44 +4,53 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   ManyToOne,
-  OneToMany
+  OneToMany,
+  BaseEntity,
 } from 'typeorm';
 
-
 @Entity()
-export class Parent {
+class Child1 extends BaseEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @OneToMany(type => Child, child => child.parent)
-  children!: Child[];
+  @ManyToOne(type => Child2, c => c.child1s)
+  child2!: Child2;
+
+  @ManyToOne(type => Parent, p => p.child1s)
+  p!: Parent;
 }
 
 @Entity()
-export class Child {
+class Parent extends BaseEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @ManyToOne(type => Parent, p => p.children)
-  parent!: Parent;
+  @OneToMany(type => Child1, c => c.p, {cascade: true})
+  child1s!: Child1[];
+}
+
+@Entity()
+class Child2 extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @OneToMany(type => Child1, c => c.child2)
+  child1s!: Child1[];
 }
 
 const options: ConnectionOptions = {
   type: 'sqlite',
   database: `./db.sqlite`,
-  entities: [Parent, Child],
+  entities: [Parent, Child1, Child2],
   logging: true,
-  synchronize: true
+  synchronize: true,
 };
 
 async function main() {
   const connection = await createConnection(options);
-
-  const childRepo = connection.getRepository(Child);
-  childRepo.save(new Child())
-
-  const children = await childRepo.find();
-  console.log(children);
+  const p = new Parent();
+  p.child1s = [Child1.create()]; // Cild1.cild2が空のManyToOne
+  await p.save();
 }
 
 main().catch(console.error);
